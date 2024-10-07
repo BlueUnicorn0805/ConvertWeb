@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV to Text Converter</title>
+</head>
+<body>
+    <h1>Chrome History CSV to URL List Converter</h1>
+    
+    <!-- Input for selecting multiple CSV files -->
+    <input type="file" id="fileInput" accept=".csv" multiple>
+    <br><br>
+
+    <!-- Button to trigger conversion -->
+    <button id="convertBtn">Convert</button>
+
+    <!-- Link to download the generated text file -->
+    <a id="downloadLink" style="display:none;">Download Result</a>
+
+    <script>
+        document.getElementById('convertBtn').addEventListener('click', () => {
+            const fileInput = document.getElementById('fileInput');
+            const files = fileInput.files;
+            
+            if (!files.length) {
+                alert('Please select CSV files.');
+                return;
+            }
+
+            const allUrls = new Set(); // To store unique URLs
+
+            Array.from(files).forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const content = event.target.result;
+                    const lines = content.split('\n');
+
+                    lines.forEach((line, index) => {
+                        // Skip the first line (header)
+                        if (index > 0) {
+                            const columns = line.split(',');
+                            if (columns[5]) {
+                                // Extract the URL (6th column, index 5)
+                                const url = columns[5];
+                                allUrls.add(new URL(url).origin); // Add base URL (no duplicates)
+                            }
+                        }
+                    });
+
+                    if (Array.from(files).indexOf(file) === files.length - 1) {
+                        // If all files are processed, create and download the result file
+                        downloadTxtFile(allUrls);
+                    }
+                };
+                reader.readAsText(file);
+            });
+        });
+
+        function downloadTxtFile(urls) {
+            const textContent = Array.from(urls).join('\n');
+            const blob = new Blob([textContent], { type: 'text/plain' });
+            const downloadLink = document.getElementById('downloadLink');
+            downloadLink.href = URL.createObjectURL(blob);
+            downloadLink.download = 'todayHistory.txt';
+            downloadLink.style.display = 'block';
+            downloadLink.textContent = 'Download Converted File';
+        }
+    </script>
+</body>
+</html>
