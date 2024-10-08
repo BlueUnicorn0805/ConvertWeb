@@ -30,50 +30,106 @@
                 return;
             }
 
-            
+            const allUrls = new Set(); // To store unique URLs
+            const fileReaders = []; // To store FileReader promises
 
+            // Loop over each file
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
-                reader.onload = (event) => {
-                    const content = event.target.result;
-                    const lines = content.split('\n');
-                    const allUrls = new Set(); // To store unique URLs
+                const filePromise = new Promise((resolve, reject) => {
+                    reader.onload = (event) => {
+                        const content = event.target.result;
+                        const lines = content.split('\n');
+                        const lastModified = new Date(file.lastModified);
+                        const formattedDate = lastModified.toISOString().slice(0, 10); // Format YYYY-MM-DD
+                        allUrls.add(`\n${formattedDate} :: ${file.name.replace('.csv', '')}'s History\n`);
 
-                    // Get the last modified date of the file and format it
-                    const lastModified = new Date(file.lastModified);
-                    const formattedDate = lastModified.toISOString().slice(0, 10); // Format YYYY-MM-DD
-
-                    allUrls.add(`${formattedDate} :: ${file.name.replace('.csv', '')}'s History\n`);
-
-                    lines.forEach((line, index) => {
-                        // Skip the first line (header)
-                        if (index > 0) {
-                            const columns = line.split(',');
-                            
-                            if (columns[5] && isValidURL(columns[5])) { 
-                                // Check if URL is valid before using new URL()
-                                try {
-                                    const url = new URL(columns[5]);
-                                     // Only add URLs that do NOT start with 'file://'
-                                    if (!url.protocol.startsWith('file:')) {
-                                        allUrls.add(url.origin); // Add base URL (no duplicates)
+                        lines.forEach((line, index) => {
+                            // Skip the first line (header)
+                            if (index > 0) {
+                                const columns = line.split(',');
+                                
+                                if (columns[5] && isValidURL(columns[5])) { 
+                                    // Check if URL is valid before using new URL()
+                                    try {
+                                        const url = new URL(columns[5]);
+                                        // Only add URLs that do NOT start with 'file://'
+                                        if (!url.protocol.startsWith('file:')) {
+                                            allUrls.add(url.origin); // Add base URL (no duplicates)
+                                        }
+                                    } catch (error) {
+                                        console.error('Invalid URL:', columns[5], error);
                                     }
-                                } catch (error) {
-                                    console.error('Invalid URL:', columns[5], error);
                                 }
                             }
-                        }
-                    });
-                   
+                        });
+                        resolve(); // Resolve the promise when the file is fully processed
+                    };
+                    reader.onerror = reject; // Reject the promise on error
+                });
 
-                    // Once file is processed, create and download a text file
-                    const txtFileName = file.name.replace('.csv', '.txt'); // Change extension to .txt
-                    downloadTxtFile(txtFileName, allUrls, formattedDate);
-
-                };
+                // Start reading the file
                 reader.readAsText(file);
+                fileReaders.push(filePromise); // Store the promise
             });
+            // Wait for all FileReader promises to resolve
+            Promise.all(fileReaders)
+                .then(() => {
+                    const fileNames = Array.from(files).map(file => file.name.replace('.csv', '')); // Get file names without .csv
+                    const commonName = findCommonPart(fileNames);
+                    const lastModified = new Date(files[0].lastModified);
+                    const formattedDate = lastModified.toISOString().slice(0, 10); // Format YYYY-MM-DD
+
+                    if (commonName) {
+                        const txtFileName = `${commonName}.txt`;
+                        downloadTxtFile(txtFileName, allUrls, formattedDate);
+                    } else {
+                        alert('No common part found in the file names.');
+                        const txtFileName = `${fileNames[0]}.txt`;
+                        downloadTxtFile(txtFileName, allUrls, formattedDate);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error reading files:', error);
+                });
+            
+            // const fileNames = Array.from(files).map(file => file.name.replace('.csv', '')); // Get file names without .csv
+            // const commonName = findCommonPart(fileNames);
+            // // Get the last modified date of the file and format it
+            // const lastModified = new Date(files[0].lastModified);
+            // const formattedDate = lastModified.toISOString().slice(0, 10); // Format YYYY-MM-DD
+
+            // if (commonName) {
+            //     const txtFileName = `${commonName}.txt`;
+            //     console.log('URKL', allUrls);
+            //     downloadTxtFile(txtFileName, allUrls, formattedDate);
+            //     // downloadFile(txtFileName, "Sample content here"); // You can add your content here
+            // } else {
+            //     alert('No common part found in the file names.');
+            // }
+
+            // Once file is processed, create and download a text file
+            // const txtFileName = file.name.replace('.csv', '.txt'); // Change extension to .txt
+            // downloadTxtFile(txtFileName, allUrls, formattedDate);
+
         });
+
+        // Function to find the common part in file names
+        function findCommonPart(fileNames) {
+            if (fileNames.length === 0) return '';
+
+            let common = fileNames[0];
+
+            fileNames.forEach(name => {
+                let i = 0;
+                while (i < common.length && i < name.length && common[i] === name[i]) {
+                    i++;
+                }
+                common = common.slice(0, i);
+            });
+
+            return common.trim();
+        }
 
         // Helper function to validate URLs
         function isValidURL(string) {
@@ -87,6 +143,7 @@
 
          // Function to create and download the text file
          function downloadTxtFile(fileName, urls, formattedDate) {
+            console.log("URL:::", urls);
             const textContent = Array.from(urls).join('\n');
             const blob = new Blob([textContent], { type: 'text/plain' });
 
