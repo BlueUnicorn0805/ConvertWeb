@@ -16,7 +16,9 @@
     <button id="convertBtn">Convert</button>
 
     <!-- Link to download the generated text file -->
-    <a id="downloadLink" style="display:none;">Download Result</a>
+    <!-- <a id="downloadLinks" style="display:none;">Download Result</a> -->
+    <br><br>
+    <a id="downloadLinks">Download Result</a>
 
     <script>
         document.getElementById('convertBtn').addEventListener('click', () => {
@@ -35,36 +37,64 @@
                 reader.onload = (event) => {
                     const content = event.target.result;
                     const lines = content.split('\n');
-
+                    
                     lines.forEach((line, index) => {
                         // Skip the first line (header)
                         if (index > 0) {
                             const columns = line.split(',');
-                            if (columns[5]) {
-                                // Extract the URL (6th column, index 5)
-                                const url = columns[5];
-                                allUrls.add(new URL(url).origin); // Add base URL (no duplicates)
+                            
+                            if (columns[5] && isValidURL(columns[5])) { 
+                                // Check if URL is valid before using new URL()
+                                try {
+                                    const url = new URL(columns[5]);
+                                     // Only add URLs that do NOT start with 'file://'
+                                    if (!url.protocol.startsWith('file:')) {
+                                        allUrls.add(url.origin); // Add base URL (no duplicates)
+                                    }
+                                } catch (error) {
+                                    console.error('Invalid URL:', columns[5], error);
+                                }
                             }
                         }
                     });
+                    // Get the last modified date of the file and format it
+                    const lastModified = new Date(file.lastModified);
+                    const formattedDate = lastModified.toISOString().slice(0, 10); // Format YYYY-MM-DD
+                    
+                    // Once file is processed, create and download a text file
+                    const txtFileName = file.name.replace('.csv', '.txt'); // Change extension to .txt
+                    downloadTxtFile(txtFileName, allUrls);
 
-                    if (Array.from(files).indexOf(file) === files.length - 1) {
-                        // If all files are processed, create and download the result file
-                        downloadTxtFile(allUrls);
-                    }
                 };
                 reader.readAsText(file);
             });
         });
 
-        function downloadTxtFile(urls) {
+        // Helper function to validate URLs
+        function isValidURL(string) {
+            try {
+                new URL(string);
+                return true;
+            } catch (_) {
+                return false;
+            }
+        }
+
+         // Function to create and download the text file
+         function downloadTxtFile(fileName, urls) {
             const textContent = Array.from(urls).join('\n');
             const blob = new Blob([textContent], { type: 'text/plain' });
-            const downloadLink = document.getElementById('downloadLink');
+
+            // Create a new anchor element for each file (no reuse of old links)
+            const downloadLink = document.createElement('a');
+
+            
+    
             downloadLink.href = URL.createObjectURL(blob);
-            downloadLink.download = 'todayHistory.txt';
+            downloadLink.download = `${formattedDate}/${fileName}`; // Use the same name as the .csv file but with .txt extension
+            downloadLink.textContent = `Download ${fileName}`;
             downloadLink.style.display = 'block';
-            downloadLink.textContent = 'Download Converted File';
+            document.getElementById('downloadLinks').appendChild(downloadLink); // Append link to the page
         }
     </script>
 </body>
