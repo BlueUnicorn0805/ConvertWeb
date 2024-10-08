@@ -6,7 +6,7 @@
     <title>CSV to Text Converter</title>
 </head>
 <body>
-    <h1>Chrome History CSV to URL List Converter</h1>
+    <h1>ChonSuRim Chrome History Converter</h1>
     
     <!-- Input for selecting multiple CSV files -->
     <input type="file" id="fileInput" accept=".csv" multiple>
@@ -18,7 +18,7 @@
     <!-- Link to download the generated text file -->
     <!-- <a id="downloadLinks" style="display:none;">Download Result</a> -->
     <br><br>
-    <a id="downloadLinks">Download Result</a>
+    <a id="downloadLinks" style="display: flex;flex-direction: column;">Download Result</a>
 
     <script>
         document.getElementById('convertBtn').addEventListener('click', () => {
@@ -30,14 +30,21 @@
                 return;
             }
 
-            const allUrls = new Set(); // To store unique URLs
+            
 
             Array.from(files).forEach(file => {
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     const content = event.target.result;
                     const lines = content.split('\n');
-                    
+                    const allUrls = new Set(); // To store unique URLs
+
+                    // Get the last modified date of the file and format it
+                    const lastModified = new Date(file.lastModified);
+                    const formattedDate = lastModified.toISOString().slice(0, 10); // Format YYYY-MM-DD
+
+                    allUrls.add(`${formattedDate} :: ${file.name.replace('.csv', '')}'s History\n`);
+
                     lines.forEach((line, index) => {
                         // Skip the first line (header)
                         if (index > 0) {
@@ -57,13 +64,11 @@
                             }
                         }
                     });
-                    // Get the last modified date of the file and format it
-                    const lastModified = new Date(file.lastModified);
-                    const formattedDate = lastModified.toISOString().slice(0, 10); // Format YYYY-MM-DD
-                    
+                   
+
                     // Once file is processed, create and download a text file
                     const txtFileName = file.name.replace('.csv', '.txt'); // Change extension to .txt
-                    downloadTxtFile(txtFileName, allUrls);
+                    downloadTxtFile(txtFileName, allUrls, formattedDate);
 
                 };
                 reader.readAsText(file);
@@ -81,19 +86,16 @@
         }
 
          // Function to create and download the text file
-         function downloadTxtFile(fileName, urls) {
+         function downloadTxtFile(fileName, urls, formattedDate) {
             const textContent = Array.from(urls).join('\n');
             const blob = new Blob([textContent], { type: 'text/plain' });
 
             // Create a new anchor element for each file (no reuse of old links)
             const downloadLink = document.createElement('a');
 
-            
-    
             downloadLink.href = URL.createObjectURL(blob);
             downloadLink.download = `${formattedDate}/${fileName}`; // Use the same name as the .csv file but with .txt extension
-            downloadLink.textContent = `Download ${fileName}`;
-            downloadLink.style.display = 'block';
+            downloadLink.textContent = `Download ${fileName}\n`;
             document.getElementById('downloadLinks').appendChild(downloadLink); // Append link to the page
         }
     </script>
